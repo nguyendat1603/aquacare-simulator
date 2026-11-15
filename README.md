@@ -36,3 +36,22 @@ Cách cho điểm:
  - Lấy thông tin, thông số mỗi loại thiết bị(cảm biến môi trường, bơm nước, sục khí, cân bằng pH, cho ăn): 2 điểm
  - Ghi log hoạt động trên mỗi thiết bị: 1 điểm
  - Quản lý thông tin hồ nuôi: 1 điểm
+
+## Module xử lý truyền dòng TCP
+
+Module `tcp_stream.c` và `tcp_stream.h` đóng gói mỗi thông điệp thành tiền tố
+độ dài 4 byte (network byte order) và phần dữ liệu. `tcp_send_message()` gửi
+đủ tiền tố và nội dung, kể cả khi `send()` chỉ gửi được một phần.
+`tcp_receive_message()` đọc đủ một thông điệp, không làm mất dữ liệu của thông
+điệp kế tiếp nếu nhiều thông điệp đã được nhận cùng lúc. Kích thước dữ liệu tối
+đa là 1 MiB. Hàm nhận trả về `1` khi nhận thành công, `0` khi phía bên kia đóng
+kết nối đúng giữa hai thông điệp, và `-1` khi có lỗi; dữ liệu nhận được do bên
+gọi cấp phát và cần giải phóng bằng `free()`.
+
+Chương trình kiểm thử dùng `socketpair()` để kiểm tra thông điệp bị chia nhỏ,
+nhiều thông điệp liên tiếp, dữ liệu nhị phân, thông điệp rỗng và thông điệp lớn:
+
+```sh
+gcc -Wall -Wextra -std=c11 -pthread tcp_stream.c test_tcp_stream.c -o test_tcp_stream
+./test_tcp_stream
+```
