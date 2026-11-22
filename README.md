@@ -87,3 +87,21 @@ nhiều thông điệp liên tiếp, dữ liệu nhị phân, thông điệp r�
 gcc -Wall -Wextra -std=c11 -pthread tcp_stream.c test_tcp_stream.c -o test_tcp_stream
 ./test_tcp_stream
 ```
+
+## Module khởi tạo thông số thiết bị
+
+Module `device.h` và `device.c` định nghĩa cấu trúc dữ liệu `struct aquacare_device`, sinh mã định danh duy nhất (`<PREFIX>-<8HEX>-<4SEQ>`), mật khẩu mặc định (`aquacare123`), kiểm tra tính hợp lệ và khởi tạo thông số mặc định cho cả 5 loại thiết bị trong hồ nuôi:
+
+- `ENV_SENSOR` (`SEN`): Cảm biến môi trường — mặc định bật (`ON`), độ mặn `20.0 ppt`, oxy hòa tan `6.5 mg/L`, độ pH `7.5`.
+- `WATER_PUMP` (`PMP`): Bộ phận bơm nước — mặc định tắt (`OFF`), lưu lượng `V = 10.0 m3/giờ`, thời gian bơm `T = 1.0 giờ`.
+- `AERATOR` (`AER`): Quạt sục khí bề mặt — mặc định tắt (`OFF`), tốc độ `C = 120.0 vòng/phút`, lịch mặc định `05:00-07:00`, `17:00-19:00`.
+- `PH_BALANCER` (`PHB`): Bộ cân bằng pH — mặc định tắt (`OFF`), lượng vôi `Wca = 2.5 kg`, ngưỡng `pHmin = 7.0`, pH hiện tại `7.5`.
+- `AUTO_FEEDER` (`FDR`): Máy cho ăn tự động — mặc định tắt (`OFF`), lượng thức ăn `Wf = 1.5 kg`, thời điểm mặc định `07:00`, `17:00`.
+
+Biên dịch và chạy kiểm thử khởi tạo thiết bị trên Ubuntu/Linux:
+
+```sh
+gcc -Wall -Wextra -std=c11 device.c test_device.c -o test_device
+./test_device
+```
+

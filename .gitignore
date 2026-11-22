@@ -1,0 +1,9 @@
+*.o
+*.exe
+tcp_server
+tcp_client
+test_tcp_stream
+test_device
+test_discovery
+device_server
+device_scanner
