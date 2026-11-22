@@ -105,3 +105,34 @@ gcc -Wall -Wextra -std=c11 device.c test_device.c -o test_device
 ./test_device
 ```
 
+## Module quét thiết bị (Device Discovery)
+
+Module `discovery.h` và `discovery.c` triển khai cơ chế quét thiết bị qua UDP (cổng mặc định `9100`, địa chỉ multicast `239.255.42.99` kết hợp broadcast):
+
+- Gói tin yêu cầu quét: `AQUACARE_SCAN|1|<nonce>`
+- Gói tin phản hồi từ thiết bị: `AQUACARE_HERE|1|<nonce>|<device_type>|<device_id>|<tcp_port>|<is_on>|<device_name>`
+
+Các chương trình kèm theo:
+- `device_server.c`: Chương trình mô phỏng thiết bị dùng `select()` đơn tiến trình, vừa lắng nghe kết nối TCP non-blocking vừa lắng nghe gói tin quét UDP.
+- `device_scanner.c`: Công cụ phía người dùng gửi gói tin quét UDP, thu thập và hiển thị bảng các thiết bị tìm thấy (`TYPE`, `DEVICE ID`, `IP`, `TCP PORT`, `STATE`, `NAME`).
+- `test_discovery.c`: Bộ kiểm thử codec gói tin và quét đồng thời 5 loại thiết bị trên cùng một cổng UDP.
+
+Biên dịch trên Ubuntu/Linux:
+
+```sh
+gcc -Wall -Wextra -std=c11 tcp_stream.c device.c discovery.c device_server.c -o device_server
+gcc -Wall -Wextra -std=c11 device.c discovery.c device_scanner.c -o device_scanner
+gcc -Wall -Wextra -std=c11 -pthread device.c discovery.c test_discovery.c -o test_discovery
+./test_discovery
+```
+
+Chạy thử nhiều thiết bị trên các terminal khác nhau và quét từ `device_scanner`:
+
+```sh
+./device_server --type env_sensor --port 9001
+./device_server --type water_pump --port 9002 --flow 12.5 --duration 2
+./device_server --type aerator --port 9003 --rpm 150 --schedule 05:00-07:30,17:30-19:30
+./device_scanner 9100 1500
+```
+
+
