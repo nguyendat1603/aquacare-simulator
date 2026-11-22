@@ -332,12 +332,115 @@ oversized_cleanup:
     return result;
 }
 
+static int test_incremental_parser(void)
+{
+    static const unsigned char first_message[] = "first";
+    static const unsigned char second_message[] = "second";
+    struct tcp_message_parser first_parser = { 0 };
+    struct tcp_message_parser second_parser = { 0 };
+    void *first_frame = NULL;
+    void *second_frame = NULL;
+    void *empty_frame = NULL;
+    size_t first_frame_length = 0;
+    size_t second_frame_length = 0;
+    size_t empty_frame_length = 0;
+    unsigned char *combined = NULL;
+    size_t combined_length;
+    size_t consumed = 0;
+    uint32_t message_length = 0;
+    void *message = NULL;
+    int result = -1;
+
+    if (tcp_encode_message(first_message, sizeof(first_message) - 1,
+                           &first_frame, &first_frame_length) < 0 ||
+        tcp_encode_message(second_message, sizeof(second_message) - 1,
+                           &second_frame, &second_frame_length) < 0 ||
+        tcp_encode_message(NULL, 0, &empty_frame,
+                           &empty_frame_length) < 0) {
+        perror("tcp_encode_message");
+        goto cleanup;
+    }
+
+    combined_length = first_frame_length + second_frame_length;
+    combined = malloc(combined_length);
+    if (combined == NULL) {
+        perror("malloc");
+        goto cleanup;
+    }
+    memcpy(combined, first_frame, first_frame_length);
+    memcpy(combined + first_frame_length, second_frame, second_frame_length);
+
+    if (tcp_message_parser_feed(&first_parser, first_frame, 6, &consumed,
+                                &message, &message_length) != 0 ||
+        consumed != 6 || message != NULL) {
+        fprintf(stderr, "parser did not retain a fragmented frame\n");
+        goto cleanup;
+    }
+    if (tcp_message_parser_feed(&second_parser, second_frame,
+                                second_frame_length, &consumed, &message,
+                                &message_length) != 1 ||
+        consumed != second_frame_length ||
+        message_length != sizeof(second_message) - 1 ||
+        memcmp(message, second_message, message_length) != 0) {
+        fprintf(stderr, "independent parser state did not decode message\n");
+        goto cleanup;
+    }
+    free(message);
+    message = NULL;
+
+    if (tcp_message_parser_feed(&first_parser, combined + 6,
+                                combined_length - 6, &consumed, &message,
+                                &message_length) != 1 ||
+        consumed != first_frame_length - 6 ||
+        message_length != sizeof(first_message) - 1 ||
+        memcmp(message, first_message, message_length) != 0) {
+        fprintf(stderr, "fragmented frame did not decode correctly\n");
+        goto cleanup;
+    }
+    free(message);
+    message = NULL;
+
+    if (tcp_message_parser_feed(&first_parser,
+                                combined + first_frame_length,
+                                second_frame_length, &consumed, &message,
+                                &message_length) != 1 ||
+        consumed != second_frame_length ||
+        message_length != sizeof(second_message) - 1 ||
+        memcmp(message, second_message, message_length) != 0) {
+        fprintf(stderr, "coalesced frame did not decode correctly\n");
+        goto cleanup;
+    }
+    free(message);
+    message = NULL;
+
+    if (tcp_message_parser_feed(&second_parser, empty_frame,
+                                empty_frame_length, &consumed, &message,
+                                &message_length) != 1 ||
+        consumed != empty_frame_length || message != NULL ||
+        message_length != 0) {
+        fprintf(stderr, "incremental parser did not decode empty message\n");
+        goto cleanup;
+    }
+    result = 0;
+
+cleanup:
+    free(message);
+    free(combined);
+    free(first_frame);
+    free(second_frame);
+    free(empty_frame);
+    tcp_message_parser_destroy(&first_parser);
+    tcp_message_parser_destroy(&second_parser);
+    return result;
+}
+
 int main(void)
 {
     if (test_fragmented_and_coalesced_messages() < 0 ||
         test_send_and_receive_message() < 0 ||
         test_large_message() < 0 ||
-        test_connection_and_size_errors() < 0) {
+        test_connection_and_size_errors() < 0 ||
+        test_incremental_parser() < 0) {
         return EXIT_FAILURE;
     }
 

@@ -48,6 +48,38 @@ Module `tcp_stream.c` và `tcp_stream.h` đóng gói mỗi thông điệp thành
 kết nối đúng giữa hai thông điệp, và `-1` khi có lỗi; dữ liệu nhận được do bên
 gọi cấp phát và cần giải phóng bằng `free()`.
 
+### Echo server dùng `select()`
+
+Server dùng socket non-blocking và `select()` để theo dõi socket lắng nghe cùng
+các Client. Mỗi Client có parser và hàng đợi gửi riêng; dữ liệu chưa đủ một
+khung được giữ lại mà không chặn các Client khác. Hàng đợi gửi cũng xử lý
+trường hợp `send()` chỉ gửi được một phần. Mỗi Client được giới hạn hàng đợi
+gửi ở 4 MiB; Client vượt giới hạn sẽ bị ngắt kết nối.
+
+Biên dịch trên Ubuntu/Linux:
+
+```sh
+gcc -Wall -Wextra -std=c11 tcp_stream.c tcp_server.c -o tcp_server
+gcc -Wall -Wextra -std=c11 tcp_stream.c tcp_client.c -o tcp_client
+gcc -Wall -Wextra -std=c11 -pthread tcp_stream.c test_tcp_stream.c -o test_tcp_stream
+```
+
+Chạy Server (cổng mặc định `9000`, có thể chỉ định cổng khác):
+
+```sh
+./tcp_server 9000
+```
+
+Trong terminal khác, gửi một thông điệp và xem phản hồi:
+
+```sh
+./tcp_client 127.0.0.1 9000 "Xin chao server"
+```
+
+Để thử nhiều Client cùng lúc, mở thêm terminal và chạy lệnh `tcp_client` với
+các thông điệp khác nhau; Server phục vụ chúng trong một tiến trình, không tạo
+thread/process riêng cho từng kết nối. Dừng Server bằng `Ctrl+C`.
+
 Chương trình kiểm thử dùng `socketpair()` để kiểm tra thông điệp bị chia nhỏ,
 nhiều thông điệp liên tiếp, dữ liệu nhị phân, thông điệp rỗng và thông điệp lớn:
 
